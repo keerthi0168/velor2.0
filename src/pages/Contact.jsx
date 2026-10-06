@@ -2,12 +2,35 @@ import { useState } from "react";
 import PageTransition from "../components/PageTransition";
 
 export default function Contact() {
-  const [sent, setSent] = useState(false);
+  const [status, setStatus] = useState("idle"); // idle | sending | sent | error
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
-    // later: connect to Formspree / EmailJS / your backend
-    setSent(true);
+    setStatus("sending");
+
+    const form = e.target;
+    const data = new FormData(form);
+    data.append("access_key", import.meta.env.VITE_WEB3FORMS_KEY);
+    data.append("subject", "New Velor enquiry");
+    data.append("from_name", "Velor Website");
+
+    try {
+      const res = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        body: data,
+      });
+      const json = await res.json();
+      if (json.success) {
+        setStatus("sent");
+        form.reset();
+      } else {
+        console.log("Web3Forms error:", json);
+        setStatus("error");
+      }
+    } catch (err) {
+      console.log("Network error:", err);
+      setStatus("error");
+    }
   };
 
   return (
@@ -21,16 +44,24 @@ export default function Contact() {
       </section>
 
       <section className="contact">
-        {sent ? (
+        {status === "sent" ? (
           <h2 className="big">GOT IT.<br />WE'LL BE IN TOUCH.</h2>
         ) : (
           <form className="form" onSubmit={onSubmit}>
-            <label>NAME<input type="text" required /></label>
-            <label>EMAIL<input type="email" required /></label>
-            <label>COMPANY / BRAND<input type="text" /></label>
-            <label>WHAT DO YOU NEED?<input type="text" /></label>
-            <label>TELL US ABOUT YOUR PROJECT<textarea rows="5" required /></label>
-            <button type="submit" className="btn">SEND IT →</button>
+            <label>NAME<input type="text" name="name" required /></label>
+            <label>EMAIL<input type="email" name="email" required /></label>
+            <label>COMPANY / BRAND<input type="text" name="company" /></label>
+            <label>WHAT DO YOU NEED?<input type="text" name="need" /></label>
+            <label>TELL US ABOUT YOUR PROJECT<textarea name="message" rows="5" required /></label>
+
+            <input type="checkbox" name="botcheck" style={{ display: "none" }} tabIndex="-1" autoComplete="off" />
+
+            <button type="submit" className="btn" disabled={status === "sending"}>
+              {status === "sending" ? "SENDING..." : "SEND IT →"}
+            </button>
+            {status === "error" && (
+              <p style={{ color: "#ff6b6b" }}>Something went wrong. Please try again or email us directly.</p>
+            )}
           </form>
         )}
 
